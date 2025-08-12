@@ -33,13 +33,13 @@ def ensure_db_schema():
     models.Base.metadata.create_all(bind=engine)
 
 
-def download_ticker_intraday(ticker: str) -> pd.DataFrame:
+def download_ticker_intraday(ticker: str, include_prepost: bool = True) -> pd.DataFrame:
     df = yf.download(
         tickers=ticker,
         period="1d",
         interval="1m",
         auto_adjust=False,
-        prepost=False,
+        prepost=include_prepost,
         progress=False,
         threads=False,
     )
