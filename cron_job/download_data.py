@@ -56,6 +56,20 @@ def download_ticker_intraday(ticker: str, include_prepost: bool = True) -> pd.Da
             else:
                 normalized_cols.append(str(col).lower())
         df.columns = normalized_cols
+    # Ensure required columns exist and are usable
+    if "close" not in df.columns:
+        return pd.DataFrame()
+    for col in ("open", "high", "low"):
+        if col not in df.columns:
+            df[col] = df["close"]
+    if "volume" not in df.columns:
+        df["volume"] = 0
+    # Drop rows with missing close; fill other OH L from close where missing
+    df = df.copy()
+    df = df[~pd.isna(df["close"])].sort_index()
+    for col in ("open", "high", "low"):
+        df[col] = df[col].fillna(df["close"])  # safe fallback
+    df["volume"] = df["volume"].fillna(0)
     # Ensure timezone-aware UTC timestamps
     idx = pd.to_datetime(df.index, utc=True)
     df.index = idx
@@ -110,15 +124,17 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
         return 0
 
     try:
-        stmt = insert(models.StockData).values(rows)
-        do_nothing_stmt = stmt.on_conflict_do_nothing(index_elements=["ticker", "timestamp"])
-        result = db.execute(do_nothing_stmt)
+        # Use RETURNING to get accurate count of inserted rows in PostgreSQL
+        stmt = (
+            insert(models.StockData)
+            .values(rows)
+            .on_conflict_do_nothing(index_elements=["ticker", "timestamp"]) 
+            .returning(models.StockData.id)
+        )
+        result = db.execute(stmt)
+        inserted_ids = list(result.scalars().all())
         db.commit()
-        # result.rowcount may be -1 for some DBAPIs; return inserted count if available
-        try:
-            return result.rowcount or 0
-        except Exception:
-            return 0
+        return len(inserted_ids)
     except Exception:
         db.rollback()
         raise
