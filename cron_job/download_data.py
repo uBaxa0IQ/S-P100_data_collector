@@ -56,20 +56,6 @@ def download_ticker_intraday(ticker: str, include_prepost: bool = True) -> pd.Da
             else:
                 normalized_cols.append(str(col).lower())
         df.columns = normalized_cols
-    # Ensure required columns exist and are usable
-    if "close" not in df.columns:
-        return pd.DataFrame()
-    for col in ("open", "high", "low"):
-        if col not in df.columns:
-            df[col] = df["close"]
-    if "volume" not in df.columns:
-        df["volume"] = 0
-    # Drop rows with missing close; fill other OH L from close where missing
-    df = df.copy()
-    df = df[~pd.isna(df["close"])].sort_index()
-    for col in ("open", "high", "low"):
-        df[col] = df[col].fillna(df["close"])  # safe fallback
-    df["volume"] = df["volume"].fillna(0)
     # Ensure timezone-aware UTC timestamps
     idx = pd.to_datetime(df.index, utc=True)
     df.index = idx
@@ -80,45 +66,48 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
     if df.empty:
         return 0
 
+    if "close" not in df.columns:
+        logger.warning("No 'close' column for ticker %s, skipping upsert.", ticker)
+        return 0
+
+    # Create a copy to avoid SettingWithCopyWarning and clean data
+    df_clean = df.copy()
+
+    # Ensure other columns exist, using 'close' as a fallback for OHLC.
+    for col in ("open", "high", "low"):
+        if col not in df_clean.columns:
+            df_clean[col] = df_clean["close"]
+    if "volume" not in df_clean.columns:
+        df_clean["volume"] = 0
+
+    # Drop rows with missing 'close' and fill other NaNs
+    df_clean.dropna(subset=["close"], inplace=True)
+    for col in ("open", "high", "low"):
+        df_clean[col].fillna(df_clean["close"], inplace=True)
+    df_clean["volume"].fillna(0, inplace=True)
+    
+    # Cast volume to integer
+    df_clean["volume"] = df_clean["volume"].astype(int)
+
+    if df_clean.empty:
+        logger.info("No valid rows for %s after cleaning.", ticker)
+        return 0
+
     rows = []
-    for ts, row in df.iterrows():
-        # Convert to timezone-aware Python datetime in UTC
+    for ts, row in df_clean.iterrows():
         ts_dt = ts.to_pydatetime()
         if ts_dt.tzinfo is None:
             ts_dt = ts_dt.replace(tzinfo=timezone.utc)
 
-        open_val = row.get("open")
-        high_val = row.get("high")
-        low_val = row.get("low")
-        close_val = row.get("close")
-        volume_val = row.get("volume")
-
-        # Skip rows with missing essential OHLC values
-        if pd.isna(open_val) or pd.isna(high_val) or pd.isna(low_val) or pd.isna(close_val):
-            continue
-
-        volume_int = 0
-        if not pd.isna(volume_val):
-            try:
-                volume_int = int(volume_val)
-            except Exception:
-                # In rare cases volume can be float/decimal; best effort cast
-                try:
-                    volume_int = int(float(volume_val))
-                except Exception:
-                    volume_int = 0
-
-        rows.append(
-            {
-                "ticker": ticker,
-                "timestamp": ts_dt,
-                "open": float(open_val),
-                "high": float(high_val),
-                "low": float(low_val),
-                "close": float(close_val),
-                "volume": volume_int,
-            }
-        )
+        rows.append({
+            "ticker": ticker,
+            "timestamp": ts_dt,
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"]),
+            "volume": int(row["volume"]),
+        })
 
     if not rows:
         return 0
@@ -128,7 +117,7 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
         stmt = (
             insert(models.StockData)
             .values(rows)
-            .on_conflict_do_nothing(index_elements=["ticker", "timestamp"]) 
+            .on_conflict_do_nothing(index_elements=["ticker", "timestamp"])
             .returning(models.StockData.id)
         )
         result = db.execute(stmt)
