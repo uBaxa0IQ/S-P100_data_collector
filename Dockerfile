@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . /app
 
+# Ensure Python can import from /app
+ENV PYTHONPATH=/app
+
 # Setup cron job
 COPY crontab /etc/cron.d/stock-cron
 RUN chmod 0644 /etc/cron.d/stock-cron && \

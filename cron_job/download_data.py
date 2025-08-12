@@ -1,4 +1,6 @@
 import logging
+import os
+import sys
 from datetime import timezone
 
 import pandas as pd
@@ -6,8 +8,17 @@ import yfinance as yf
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from api.database import SessionLocal, engine
-from api import models
+# Ensure imports work both when executed as a module and as a script
+try:
+    from api.database import SessionLocal, engine
+    from api import models
+except ModuleNotFoundError:
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    from api.database import SessionLocal, engine
+    from api import models
+
 from .tickers import SNP_100_TICKERS
 
 
@@ -34,8 +45,17 @@ def download_ticker_intraday(ticker: str) -> pd.DataFrame:
     )
     if df is None or df.empty:
         return pd.DataFrame()
-    # Normalize columns and timestamps
-    df = df.rename(columns={c: c.lower() for c in df.columns})
+    # Normalize columns and timestamps (flatten possible MultiIndex columns)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [str(col[-1]).lower() for col in df.columns]
+    else:
+        normalized_cols = []
+        for col in df.columns:
+            if isinstance(col, tuple):
+                normalized_cols.append(str(col[-1]).lower())
+            else:
+                normalized_cols.append(str(col).lower())
+        df.columns = normalized_cols
     # Ensure timezone-aware UTC timestamps
     idx = pd.to_datetime(df.index, utc=True)
     df.index = idx
@@ -53,15 +73,36 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
         if ts_dt.tzinfo is None:
             ts_dt = ts_dt.replace(tzinfo=timezone.utc)
 
+        open_val = row.get("open")
+        high_val = row.get("high")
+        low_val = row.get("low")
+        close_val = row.get("close")
+        volume_val = row.get("volume")
+
+        # Skip rows with missing essential OHLC values
+        if pd.isna(open_val) or pd.isna(high_val) or pd.isna(low_val) or pd.isna(close_val):
+            continue
+
+        volume_int = 0
+        if not pd.isna(volume_val):
+            try:
+                volume_int = int(volume_val)
+            except Exception:
+                # In rare cases volume can be float/decimal; best effort cast
+                try:
+                    volume_int = int(float(volume_val))
+                except Exception:
+                    volume_int = 0
+
         rows.append(
             {
                 "ticker": ticker,
                 "timestamp": ts_dt,
-                "open": float(row.get("open")),
-                "high": float(row.get("high")),
-                "low": float(row.get("low")),
-                "close": float(row.get("close")),
-                "volume": int(row.get("volume", 0) or 0),
+                "open": float(open_val),
+                "high": float(high_val),
+                "low": float(low_val),
+                "close": float(close_val),
+                "volume": volume_int,
             }
         )
 
