@@ -1,5 +1,16 @@
+import os
+import sys
 import pandas as pd
 import yfinance as yf
+
+# Robust import of tickers whether run as module or script
+try:
+    from cron_job.tickers import SNP_100_TICKERS
+except ModuleNotFoundError:
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    from cron_job.tickers import SNP_100_TICKERS
 
 
 def download_ticker_intraday(ticker: str, include_prepost: bool = True) -> pd.DataFrame:
@@ -41,5 +52,21 @@ if __name__ == "__main__":
         last_ts = data_frame.index[-1]
         print(f"First: {first_ts.isoformat()}")
         print(f"Last:  {last_ts.isoformat()}")
+
+    print("\nBatch fetching S&P 100 (1m, include pre/post) ...")
+    total_rows = 0
+    nonempty_tickers = 0
+    for ticker in SNP_100_TICKERS:
+        df = download_ticker_intraday(ticker, include_prepost=True)
+        if df is None or df.empty:
+            print(f"{ticker}: no data")
+            continue
+        nonempty_tickers += 1
+        total_rows += len(df)
+        first_ts = df.index[0]
+        last_ts = df.index[-1]
+        print(f"{ticker}: rows={len(df)} first={first_ts.isoformat()} last={last_ts.isoformat()}")
+
+    print(f"\nSummary: tickers_with_data={nonempty_tickers} total_rows={total_rows}")
 
 
