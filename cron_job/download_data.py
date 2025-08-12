@@ -106,15 +106,22 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
             }
         )
 
-    stmt = insert(models.StockData).values(rows)
-    do_nothing_stmt = stmt.on_conflict_do_nothing(index_elements=["ticker", "timestamp"])
-    result = db.execute(do_nothing_stmt)
-    db.commit()
-    # result.rowcount may be -1 for some DBAPIs; return inserted count if available
-    try:
-        return result.rowcount or 0
-    except Exception:
+    if not rows:
         return 0
+
+    try:
+        stmt = insert(models.StockData).values(rows)
+        do_nothing_stmt = stmt.on_conflict_do_nothing(index_elements=["ticker", "timestamp"])
+        result = db.execute(do_nothing_stmt)
+        db.commit()
+        # result.rowcount may be -1 for some DBAPIs; return inserted count if available
+        try:
+            return result.rowcount or 0
+        except Exception:
+            return 0
+    except Exception:
+        db.rollback()
+        raise
 
 
 def main():
