@@ -27,12 +27,12 @@ def download_ticker_intraday(ticker: str, include_prepost: bool = True) -> pd.Da
         return pd.DataFrame()
     # Normalize columns and timestamps (flatten possible MultiIndex columns)
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [str(col[-1]).lower() for col in df.columns]
+        df.columns = [str(col[0]).lower() for col in df.columns]
     else:
         normalized_cols = []
         for col in df.columns:
             if isinstance(col, tuple):
-                normalized_cols.append(str(col[-1]).lower())
+                normalized_cols.append(str(col[0]).lower())
             else:
                 normalized_cols.append(str(col).lower())
         df.columns = normalized_cols
@@ -52,6 +52,7 @@ if __name__ == "__main__":
         last_ts = data_frame.index[-1]
         print(f"First: {first_ts.isoformat()}")
         print(f"Last:  {last_ts.isoformat()}")
+        print(data_frame)
 
     print("\nBatch fetching S&P 100 (1m, include pre/post) ...")
     total_rows = 0
