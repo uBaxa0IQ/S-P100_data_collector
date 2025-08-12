@@ -83,9 +83,9 @@ def upsert_stock_data(db: Session, ticker: str, df: pd.DataFrame) -> int:
     # Drop rows with missing 'close' and fill other NaNs
     df_clean.dropna(subset=["close"], inplace=True)
     for col in ("open", "high", "low"):
-        df_clean[col].fillna(df_clean["close"], inplace=True)
-    df_clean["volume"].fillna(0, inplace=True)
-    
+        df_clean[col] = df_clean[col].fillna(df_clean["close"])
+    df_clean["volume"] = df_clean["volume"].fillna(0)
+
     # Cast volume to integer
     df_clean["volume"] = df_clean["volume"].astype(int)
 
