@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
+from typing import List
 
 
 class StockData(BaseModel):
@@ -15,5 +16,19 @@ class StockData(BaseModel):
 
     # Pydantic v2: enable ORM mode
     model_config = ConfigDict(from_attributes=True)
+
+
+class MarketRegime(BaseModel):
+    ticker: str
+    regime: str
+
+
+class AllMarketRegimes(BaseModel):
+    regimes: dict[str, str]
+
+
+class TickersByRegime(BaseModel):
+    regime: str
+    tickers: List[str]
 
 

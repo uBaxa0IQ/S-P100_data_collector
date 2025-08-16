@@ -1,6 +1,8 @@
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from .market_regime import calculate_market_regime
+from cron_job.tickers import S_P_100_TICKERS
 
 from . import crud, models, schemas
 from .database import Base, engine, get_db
@@ -36,5 +38,32 @@ def get_by_ticker(ticker: str, db: Session = Depends(get_db)):
     ticker_norm = ticker.upper()
     data = crud.get_data_by_ticker(db, ticker=ticker_norm)
     return data
+
+
+@app.get("/regime/all", response_model=schemas.AllMarketRegimes)
+def get_all_regimes(db: Session = Depends(get_db)):
+    regimes = {
+        ticker: calculate_market_regime(ticker, db)
+        for ticker in S_P_100_TICKERS
+    }
+    return {"regimes": regimes}
+
+
+@app.get("/regime/by_regime/{regime_name}", response_model=schemas.TickersByRegime)
+def get_tickers_by_regime(regime_name: str, db: Session = Depends(get_db)):
+    all_regimes = {
+        ticker: calculate_market_regime(ticker, db)
+        for ticker in S_P_100_TICKERS
+    }
+    tickers = [
+        ticker for ticker, regime in all_regimes.items() if regime == regime_name
+    ]
+    return {"regime": regime_name, "tickers": tickers}
+
+
+@app.get("/regime/{ticker}", response_model=schemas.MarketRegime)
+def get_regime_for_ticker(ticker: str, db: Session = Depends(get_db)):
+    regime = calculate_market_regime(ticker.upper(), db)
+    return {"ticker": ticker.upper(), "regime": regime}
 
 

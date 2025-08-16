@@ -4,7 +4,8 @@ gunicorn>=20.1.0
 SQLAlchemy>=2.0.0
 psycopg2-binary>=2.9.0
 python-dotenv>=1.0.0
-yfinance>=0.2.0
+yfinance>=0.2.37
+pandas-ta>=0.3.14b
 pandas>=2.0.0
 pydantic>=2.0.0
 
