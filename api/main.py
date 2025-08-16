@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from .market_regime import calculate_market_regime
-from cron_job.tickers import S_P_100_TICKERS
+from cron_job.tickers import SNP_100_TICKERS
 
 from . import crud, models, schemas
 from .database import Base, engine, get_db
@@ -44,7 +44,7 @@ def get_by_ticker(ticker: str, db: Session = Depends(get_db)):
 def get_all_regimes(db: Session = Depends(get_db)):
     regimes = {
         ticker: calculate_market_regime(ticker, db)
-        for ticker in S_P_100_TICKERS
+        for ticker in SNP_100_TICKERS
     }
     return {"regimes": regimes}
 
@@ -53,7 +53,7 @@ def get_all_regimes(db: Session = Depends(get_db)):
 def get_tickers_by_regime(regime_name: str, db: Session = Depends(get_db)):
     all_regimes = {
         ticker: calculate_market_regime(ticker, db)
-        for ticker in S_P_100_TICKERS
+        for ticker in SNP_100_TICKERS
     }
     tickers = [
         ticker for ticker, regime in all_regimes.items() if regime == regime_name
