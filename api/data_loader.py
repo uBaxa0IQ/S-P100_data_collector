@@ -48,10 +48,14 @@ def download_and_store_data(db: Session, ticker: str, start_date: datetime, end_
     """
     Скачивает данные из yfinance и сохраняет их в БД.
     """
-    df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+    df = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
     
     if df.empty:
         return
+
+    # Handle multi-level columns if yfinance returns them for a single ticker
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.droplevel(0)
 
     # Prepare data for bulk insert
     data_to_insert = []
@@ -59,11 +63,11 @@ def download_and_store_data(db: Session, ticker: str, start_date: datetime, end_
         data_to_insert.append({
             "ticker": ticker,
             "date": index.to_pydatetime(),
-            "open": row["Open"],
-            "high": row["High"],
-            "low": row["Low"],
-            "close": row["Close"],
-            "volume": row["Volume"]
+            "open": float(row["Open"]),
+            "high": float(row["High"]),
+            "low": float(row["Low"]),
+            "close": float(row["Close"]),
+            "volume": int(row["Volume"])
         })
     
     crud.bulk_insert_daily_data(db, data_to_insert)
