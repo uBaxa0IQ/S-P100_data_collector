@@ -8,5 +8,6 @@ yfinance>=0.2.37
 pandas-ta>=0.3.14b
 pandas>=2.0.0
 pydantic>=2.0.0
+numpy<2.0.0
 
 
