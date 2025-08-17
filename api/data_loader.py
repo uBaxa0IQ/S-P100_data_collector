@@ -31,16 +31,16 @@ def get_daily_data(db: Session, ticker: str):
     # Convert to pandas DataFrame
     df = pd.DataFrame([
         {
-            "Date": item.date,
-            "Open": item.open,
-            "High": item.high,
-            "Low": item.low,
-            "Close": item.close,
-            "Volume": item.volume
+            "date": item.date,
+            "open": item.open,
+            "high": item.high,
+            "low": item.low,
+            "close": item.close,
+            "volume": item.volume
         }
         for item in data_from_db
     ])
-    df.set_index('Date', inplace=True)
+    df.set_index('date', inplace=True)
     return df
 
 
@@ -63,11 +63,11 @@ def download_and_store_data(db: Session, ticker: str, start_date: datetime, end_
         data_to_insert.append({
             "ticker": ticker,
             "date": index.to_pydatetime(),
-            "open": float(row["Open"]),
-            "high": float(row["High"]),
-            "low": float(row["Low"]),
-            "close": float(row["Close"]),
-            "volume": int(row["Volume"])
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"]),
+            "volume": int(row["volume"])
         })
     
     crud.bulk_insert_daily_data(db, data_to_insert)
