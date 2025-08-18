@@ -7,6 +7,7 @@ from cron_job.tickers import SNP_100_TICKERS
 from . import crud, models, schemas
 from .database import Base, engine, get_db
 from sqlalchemy.orm import Session
+from .enums import MarketRegime
 
 
 app = FastAPI(title="Stock Data API", version="1.0.0")
@@ -49,16 +50,21 @@ def get_all_regimes(db: Session = Depends(get_db)):
     return {"regimes": regimes}
 
 
-@app.get("/regime/by_regime/{regime_name}", response_model=schemas.TickersByRegime)
-def get_tickers_by_regime(regime_name: str, db: Session = Depends(get_db)):
+@app.get("/regime/by_regime/{regime_id}", response_model=schemas.TickersByRegime)
+def get_tickers_by_regime(regime_id: int, db: Session = Depends(get_db)):
+    try:
+        target_regime = MarketRegime(regime_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Regime not found")
+
     all_regimes = {
         ticker: calculate_market_regime(ticker, db)
         for ticker in SNP_100_TICKERS
     }
     tickers = [
-        ticker for ticker, regime in all_regimes.items() if regime == regime_name
+        ticker for ticker, regime in all_regimes.items() if regime == target_regime
     ]
-    return {"regime": regime_name, "tickers": tickers}
+    return {"regime": regime_id, "tickers": tickers}
 
 
 @app.get("/regime/{ticker}", response_model=schemas.MarketRegime)

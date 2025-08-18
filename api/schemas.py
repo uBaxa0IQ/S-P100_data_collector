@@ -20,15 +20,15 @@ class StockData(BaseModel):
 
 class MarketRegime(BaseModel):
     ticker: str
-    regime: str
+    regime: int
 
 
 class AllMarketRegimes(BaseModel):
-    regimes: dict[str, str]
+    regimes: dict[str, int]
 
 
 class TickersByRegime(BaseModel):
-    regime: str
+    regime: int
     tickers: List[str]
 
 

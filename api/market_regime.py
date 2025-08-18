@@ -3,15 +3,17 @@ import pandas_ta as ta
 import numpy as np
 
 from .data_loader import get_daily_data
+from .enums import MarketRegime as Regime
 
-def calculate_market_regime(ticker: str, db: Session) -> str:
+
+def calculate_market_regime(ticker: str, db: Session) -> Regime:
     """
     Анализирует дневные данные и определяет режим рынка для акции.
     """
     df = get_daily_data(db, ticker)
 
     if df.empty or len(df) < 200:
-        return "нет_данных"
+        return Regime.NO_DATA
 
     # Рассчитываем индикаторы
     df.ta.sma(length=20, append=True)
@@ -25,7 +27,7 @@ def calculate_market_regime(ticker: str, db: Session) -> str:
     df.dropna(inplace=True)
 
     if df.empty:
-        return "нет_данных"
+        return Regime.NO_DATA
 
     # Последняя строка с актуальными данными
     last = df.iloc[-1]
@@ -61,10 +63,10 @@ def calculate_market_regime(ticker: str, db: Session) -> str:
 
     # Логика определения режима
     if adx > 25 and align == "быч" and slope20 > 0:
-        return "тренд_вверх"
+        return Regime.UPTREND
     if adx > 25 and align == "медв" and slope20 < 0:
-        return "тренд_вниз"
+        return Regime.DOWNTREND
     if squeeze < 0.04 and rangePct < 0.20:
-        return "сжатие/накопление"
+        return Regime.SQUEEZE
     
-    return "боковик/пилообразно"
+    return Regime.SIDEWAYS
