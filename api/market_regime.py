@@ -49,15 +49,15 @@ def calculate_market_regime(ticker: str, db: Session) -> str:
     adx = last['ADX_14']
     
     # 4. ATR в процентах от цены
-    atrp = last['ATRr_14'] / last['close']
+    atrp = last['ATRr_14'] / last['Close']
 
     # 5. Сжатие Боллинджера
     squeeze = last['BBB_20_2.0'] / 100 # BBB is already a percentage
 
     # 6. Процентный диапазон за 20 дней
-    high20 = df['high'][-20:].max()
-    low20 = df['low'][-20:].min()
-    rangePct = (high20 - low20) / last['close']
+    high20 = df['High'][-20:].max()
+    low20 = df['Low'][-20:].min()
+    rangePct = (high20 - low20) / last['Close']
 
     # Логика определения режима
     if adx > 25 and align == "быч" and slope20 > 0:

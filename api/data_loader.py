@@ -31,16 +31,16 @@ def get_daily_data(db: Session, ticker: str):
     # Convert to pandas DataFrame
     df = pd.DataFrame([
         {
-            "date": item.date,
-            "open": item.open,
-            "high": item.high,
-            "low": item.low,
-            "close": item.close,
-            "volume": item.volume
+            "Date": item.date,
+            "Open": item.open,
+            "High": item.high,
+            "Low": item.low,
+            "Close": item.close,
+            "Volume": item.volume
         }
         for item in data_from_db
     ])
-    df.set_index('date', inplace=True)
+    df.set_index('Date', inplace=True)
     return df
 
 
@@ -55,7 +55,8 @@ def download_and_store_data(db: Session, ticker: str, start_date: datetime, end_
 
     # Handle multi-level columns if yfinance returns them for a single ticker
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.droplevel(0)
+        # Drop the 'Ticker' level (level 1), keep the 'Price' level (e.g., 'Open', 'Close')
+        df.columns = df.columns.droplevel(1)
 
     # Prepare data for bulk insert
     data_to_insert = []
@@ -63,11 +64,11 @@ def download_and_store_data(db: Session, ticker: str, start_date: datetime, end_
         data_to_insert.append({
             "ticker": ticker,
             "date": index.to_pydatetime(),
-            "open": float(row["open"]),
-            "high": float(row["high"]),
-            "low": float(row["low"]),
-            "close": float(row["close"]),
-            "volume": int(row["volume"])
+            "open": float(row["Open"]),
+            "high": float(row["High"]),
+            "low": float(row["Low"]),
+            "close": float(row["Close"]),
+            "volume": int(row["Volume"])
         })
     
     crud.bulk_insert_daily_data(db, data_to_insert)
