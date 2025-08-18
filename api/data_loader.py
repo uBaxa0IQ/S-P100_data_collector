@@ -28,15 +28,15 @@ def get_daily_data(db: Session, ticker: str):
     if not data_from_db:
         return pd.DataFrame() # Return empty dataframe if no data
 
-    # Convert to pandas DataFrame
+    # Convert to pandas DataFrame, ensuring numeric types are float
     df = pd.DataFrame([
         {
             "Date": item.date,
-            "Open": item.open,
-            "High": item.high,
-            "Low": item.low,
-            "Close": item.close,
-            "Volume": item.volume
+            "Open": float(item.open),
+            "High": float(item.high),
+            "Low": float(item.low),
+            "Close": float(item.close),
+            "Volume": int(item.volume)
         }
         for item in data_from_db
     ])
